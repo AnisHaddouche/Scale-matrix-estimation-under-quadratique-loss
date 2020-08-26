@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Feb  3 09:14:20 2020
+
+@author: anishdd
+"""
+
+
+def trun_IG(ddl,A1,A2,p ):
+    from scipy.stats import gamma
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from scipy import stats
+    #import math
+    
+    #  Methode de l'inverse pour : Y suit une loi Gamma inverse sur [A1,A2]
+    #p=1000
+    #ddl=20
+    
+    alpha=ddl/2
+    beta=2/ddl
+    #p=1000
+    
+    #A1= 10
+    #A2=20
+    
+    F_A1= gamma.cdf(1/A2, alpha,scale=beta)
+    F_A2= gamma.cdf(1/A1,alpha,scale=beta)
+    
+    # X dans R+
+    #F_A1 = gamma.cdf(0, a=alpha,scale=beta)  
+    #F_A2 = gamma.cdf(math.inf, a=alpha,scale=beta)
+    
+    u = np.random.uniform(F_A1,F_A2,p)
+    x =stats.gamma.ppf(u,a=alpha,scale=beta) 
+    IG = (1./x)
+    
+    
+    #fig, ax = plt.subplots(1, 1)
+    #ax.hist(IG, density=True, histtype='stepfilled', alpha=2)
+    #plt.show()
+    return[IG];

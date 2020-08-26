@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Feb  1 15:24:24 2020
+
+@author: anishdd
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Dec 26 14:58:05 2019
+
+@author: anishdd
+"""
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Jun 30 12:24:16 2018
+
+@author: anishdd
+"""
+import numpy as np
+import math
+import sys
+import matplotlib.pyplot as plt
+from scipy.stats import invgamma
+#from scipy.stats import invgamma
+np.random.seed(16) #Fixer le noyau
+
+
+p =50
+n = 40  # n : nbr d'obs. p : nbr de var. p > 4(m^2 + m  + 1)
+q = 0           # Rang de M. q = 0 revient simuler U = Y = E Gaussien nxp, car M = 0                        
+m = n-q
+N=   30    #Monte carlo nb de simulation
+ddl=50
+
+A1= sys.float_info.epsilon
+A2=math.inf
+
+K=invgamma.cdf(A2, ddl/2,scale=ddl/2) - invgamma.cdf(A1, ddl/2,scale=ddl/2)
+
+K_st_st=((ddl/2)**2) / (K*(ddl/2 -2)*(ddl/2-1))
+
+a_Quad_loss = 1 / (K_st_st*( m + p + 1))
+
+b= A2
+c=A2
+
+t_K_Quad_loss =  ( 2*(m-1)*(p-m-1) )/((p-m+1)*(p-m+3) )
+
+
+##=============== 1/ Simuler le modele additif Y=M+E    =======================
+#================ 1.1 \ Construction de la matrice des bruits E ===============
+
+Loss_Sigma_a_Quad = 0
+#Loss_Sigma_a_dataB = 0
+
+Loss_Sigma_K_Quad = 0 #
+#Loss_Sigma_K_dataB = 0
+
+E = np.zeros((n,p))
+#gamma=-np.sort(-np.random.uniform(1,p,p))
+#gamma= -np.sort(-np.array(range(1,p+1))*10)
+#c=1
+#gamma=np.repeat(c,p)
+#Sigma= np.diag(gamma)
+#e =p*np.random.rand(p,p)
+#Sigma= np.dot(e.T,e)
+#[gamma,Vec]= np.linalg.eig(Sigma)
+#gamma= -np.sort(-gamma)
+Sigma= np.zeros((p,p))
+rho=0.9
+for ii in range(0,p):
+    for jj in range(0,p):
+        Sigma[ii,jj] = rho**abs(ii-jj)
+Mean = np.zeros(p)
+for j in range(0,N): 
+    #IG = 1/np.random.gamma(ddl/2,2/ddl, p)#
+    IG=trun_IG(ddl,A1,A2,p)
+    Z=np.tile(np.power(IG,.5),(n, 1))
+    X=np.random.multivariate_normal(Mean, Sigma, n)
+    E= np.multiply(X,Z)
+    #E = np.random.multivariate_normal(Mean, Sigma, (n))   
+   # E  = multivariate_t_rvs(Mean, Sigma, ddl, n=n)
+#================ 1.2\ Creer une matrice M de rang q ==========================
+    # M0 = np.random.rand(n,p)                    # Generer une matrice aleatoire faire une QR pour M0
+    #[u,val_propre_M0,v] = np.linalg.svd(M0)        # Faire une S.V.D
+    #Diag = np.diag(val_propre_M0)       
+    #M = np.dot(np.dot(u[:,0:q],np.diag(val_propre_M0)[0:q,0:q]),v[0:q,:])
+    #[uuu,val_propre_M,vvv] = np.linalg.svd(M)
+    # print('Le Rang de M est de :',np.linalg.matrix_rank(M))
+    #[Q,R]=np.linalg.qr(M)
+    #theta=R[0:q,:]
+    #zero=R[q:n,:]
+    #Q1=Q[:,0:q]
+    #Q2=Q[:,q:n] 
+    #print(np.allclose(M, np.dot(Q1,theta)) # Verifier si M= Q1 * theta 
+    #np.allclose(zero, np.dot(Q2.T,M)) # Verifier si 0 = Q2^T * M
+    #np.allclose(theta, np.dot(Q1.T,M)) ) # Verifier si theta = Q1^T * M 
+    M0 = np.random.rand(n,p)                    # Generer une matrice aleatoire faire une QR pour M0
+    [u,val_propre_M0,v] = np.linalg.svd(M0)        # Faire une S.V.D
+    #Diag = np.diag(val_propre_M0)       
+    M = np.dot(np.dot(u[:,0:q],np.diag(val_propre_M0)[0:q,0:q]),v[0:q,:])
+    #[uuu,val_propre_M,vvv] = np.linalg.svd(M)
+    # print('Le Rang de M est de :',np.linalg.matrix_rank(M))
+    [Q,R]=np.linalg.qr(M)
+    Q_trans_Y = np.dot(Q.T,M) + np.dot(Q.T,E)
+    Z = Q_trans_Y[0:q,:]
+    U = Q_trans_Y[q:n,:] 
+    #Y = M + E 
+    #==================== 2\ Forme canonique du modele ============================ 
+    
+    #Z = Q_trans_Y[0np.shap:q,:] ; U = Q_trans_Y[q : n, :]               # c'est juste ?
+    S = np.dot(U.T,U) 
+    #print('Rang de S :',np.linalg.matrix_rank(S),/\ Deteminant de S',np.linalg.det(S))
+    S_plus = np.linalg.pinv(S)                   # The Moore-Penrose inverse
+    trace_S_plus = np.matrix.trace(S_plus)       # Trace de S^+
+    mu = 1/ trace_S_plus
+    [R,V,D] = np.linalg.svd(U)                   # SVD pour U afin de construire S= H L_tilde H^T
+    #val_propre_S = V*V.T
+    L = np.diag(V*V )                          # Recuperer L
+    #L_inv= np.linalg.inv(L)
+    
+    L_tilde = np.zeros((p,p))
+    H1 = D.T[:,0:m]
+    
+    #=============== 3\ Construction des estimateurs et des risques associes=======
+   
+    Sigma_hat_a_Quad_loss  =   a_Quad_loss *S
+    risk_Sigma_hat_a_Quad_loss = p*(p+1)*a_Quad_loss                  #Sigma^_a
+    
+    #=============== Estimateur de Konno ===============
+    
+
+    Phi_K_Quad = L + mu * t_K_Quad_loss * np.identity(m)
+    
+    Sigma_hat_K =  a_Quad_loss  * np.dot( np.dot(H1,Phi_K_Quad), H1.T ) # Estimateur de Konno
+ 
+    
+   
+    Loss_Sigma_K_Quad= Loss_Sigma_K_Quad +np.matrix.trace( ( ( (np.linalg.inv(Sigma))@ (Sigma_hat_K ) )-np.identity(p) ) @  ( ( (np.linalg.inv(Sigma))@ (Sigma_hat_K ) )-np.identity(p) ))
+    Risk_Sigma_K_Quad=(1/N)*(Loss_Sigma_K_Quad)
+    
+    Loss_Sigma_a_Quad = Loss_Sigma_a_Quad + np.matrix.trace( ( ( (np.linalg.inv(Sigma))@ (Sigma_hat_a_Quad_loss) )-np.identity(p) ) @  ( ( (np.linalg.inv(Sigma))@ (Sigma_hat_a_Quad_loss ) )-np.identity(p) ))
+    Risk_Sigma_a_Quad=(1/N)*(Loss_Sigma_a_Quad)
+
+   
+
+
+Prial_K_a_Quad = 100*( (Risk_Sigma_a_Quad - Risk_Sigma_K_Quad   ) / Risk_Sigma_a_Quad)
+
+
+print('Cout Q:','Risk aS =',Risk_Sigma_a_Quad,"||" ,'risk Konno =', Risk_Sigma_K_Quad,"||",'Prial  = ',Prial_K_a_Quad)
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
